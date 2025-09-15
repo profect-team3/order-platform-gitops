@@ -11,7 +11,7 @@ pipeline {
     string(name: 'IMAGE_DIGEST',  defaultValue: '',     description: '<repo>@sha256:...')
     string(name: 'GITOPS_PATH',   defaultValue: 'env/msa-apps/values.yaml')
     string(name: 'GITOPS_BRANCH', defaultValue: 'main')
-    booleanParam(name: 'USE_PR',  defaultValue: true)
+    booleanParam(name: 'USE_PR',  defaultValue: false) // 기본값을 false로 변경
   }
 
   environment {
@@ -20,7 +20,10 @@ pipeline {
     BOT_EMAIL = 'modo000127@gmail.com'
   }
 
-  options { timeout(time: 10, unit: 'MINUTES'); disableConcurrentBuilds() }
+  options {
+    timeout(time: 10, unit: 'MINUTES')
+    disableConcurrentBuilds()
+  }
 
   stages {
     stage('Checkout GitOps') {
@@ -41,51 +44,69 @@ pipeline {
           sh '''
             set -euo pipefail
             cd gitops
+
+            # services.<SERVICE_KEY>.image 필드 보장 및 갱신
             yq -i '.services |= (. // {})' "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\" |= (. // {})" "${GITOPS_PATH}"
             IMAGE_REF="${IMAGE_DIGEST}"
             yq -i ".services.\\"${SERVICE_KEY}\\".image = strenv(IMAGE_REF)" "${GITOPS_PATH}"
+
             echo "[INFO] Updated ${GITOPS_PATH}: services.${SERVICE_KEY}.image -> ${IMAGE_REF}"
           '''
         }
       }
     }
 
-    stage('Commit & Push / PR') {
+    stage('Commit & Push (no PR by default)') {
       steps {
         container('git') {
-          sh '''
-            set -euo pipefail
-            cd gitops
-            git config user.name  "${BOT_NAME}"
-            git config user.email "${BOT_EMAIL}"
+          withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+            sh '''
+              set -euo pipefail
+              cd gitops
 
-            if [ "${USE_PR}" = "true" ]; then
-              BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
-              git checkout -b "$BR"
-            fi
+              git config user.name  "${BOT_NAME}"
+              git config user.email "${BOT_EMAIL}"
+              git config --global --add safe.directory "$(pwd)"
 
-            git add "${GITOPS_PATH}"
-            if git diff --cached --quiet; then
-              echo "[INFO] No changes to commit."; exit 0
-            fi
-
-            MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
-            git commit -m "$MSG"
-
-            if [ "${USE_PR}" = "true" ]; then
-              git push -u origin "$BR"
-              if command -v gh >/dev/null 2>&1; then
-                gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
-                  --title "chore(${SERVICE_KEY}): image update" \
-                  --body "$MSG"
-              else
-                echo "[WARN] gh CLI not found. 브랜치만 푸시됨: $BR"
+              git add "${GITOPS_PATH}"
+              if git diff --cached --quiet; then
+                echo "[INFO] No changes to commit."
+                exit 0
               fi
-            else
-              git push origin "${GITOPS_BRANCH}"
-            fi
-          '''
+
+              MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
+              git commit -m "$MSG"
+
+              if [ "${USE_PR}" = "true" ]; then
+                # PR 모드: 브랜치 생성 + gh CLI 있으면 PR 자동 생성
+                BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
+                git checkout -b "$BR"
+
+                # 토큰을 포함한 remote URL로 push (원격에 credential 노출 안 되게 일시 변경)
+                ORIGIN_URL="$(git config --get remote.origin.url)"
+                AUTH_URL="${ORIGIN_URL/https:\\/\\//https://${BOT_NAME}:${GITHUB_TOKEN}@}"
+                git remote set-url origin "${AUTH_URL}"
+                git push -u origin "$BR"
+                git remote set-url origin "${ORIGIN_URL}"
+
+                if command -v gh >/dev/null 2>&1; then
+                  GH_TOKEN="${GITHUB_TOKEN}" gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
+                    --title "chore(${SERVICE_KEY}): image update" \
+                    --body "$MSG" || true
+                else
+                  echo "[WARN] gh CLI not found. 브랜치만 푸시했습니다: $BR"
+                fi
+              else
+                # 직접 main에 push
+                ORIGIN_URL="$(git config --get remote.origin.url)"
+                AUTH_URL="${ORIGIN_URL/https:\\/\\//https://${BOT_NAME}:${GITHUB_TOKEN}@}"
+                git remote set-url origin "${AUTH_URL}"
+                git push origin "${GITOPS_BRANCH}"
+                git remote set-url origin "${ORIGIN_URL}"
+              fi
+            '''
+          }
         }
       }
     }
