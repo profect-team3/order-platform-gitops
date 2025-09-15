@@ -16,7 +16,7 @@ global:
 ingress:
   enabled: true
   className: alb
-  # host: api.example.com
+  host: api.example.com
   annotations:
     alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/target-type: ip
