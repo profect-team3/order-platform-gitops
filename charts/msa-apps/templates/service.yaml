@@ -13,5 +13,16 @@ spec:
       port: {{ $svc.port }}
       targetPort: {{ $svc.port }}
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-canary
+  namespace: {{ $ns }}
+spec:
+  selector: { app: {{ $name }} }
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+---
 {{- end }}
 

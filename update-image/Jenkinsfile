@@ -15,10 +15,9 @@ pipeline {
   }
 
   environment {
-    // 공개 레포면 그대로 사용. 비공개면 아래 URL을 https + PAT로 바꾸고 withCredentials 사용 권장
-    GITOPS_REPO_URL = 'https://github.com/your-org/order-platform-gitops.git'
-    BOT_NAME  = 'jenkins-bot'
-    BOT_EMAIL = 'jenkins@your-org'
+    GITOPS_REPO_URL = 'https://github.com/profect-team3/order-platform-gitops.git'
+    BOT_NAME  = 'yun1270'
+    BOT_EMAIL = 'modo000127@gmail.com'
   }
 
   options { timeout(time: 10, unit: 'MINUTES'); disableConcurrentBuilds() }
@@ -32,10 +31,6 @@ pipeline {
             rm -rf gitops
             git clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
           '''
-          // 비공개일 경우 예시:
-          // withCredentials([string(credentialsId: 'gitops-token', variable: 'GIT_TOKEN')]) {
-          //   sh 'git clone --branch "${GITOPS_BRANCH}" https://${GIT_TOKEN}@github.com/your-org/order-platform-gitops.git gitops'
-          // }
         }
       }
     }

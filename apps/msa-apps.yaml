@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/order-platform-gitops.git
+    repoURL:  https://github.com/profect-team3/order-platform-gitops.git
     targetRevision: main
     path: charts/msa-apps
     helm:
@@ -19,3 +19,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

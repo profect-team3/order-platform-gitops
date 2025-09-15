@@ -24,11 +24,3 @@ services:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
   payment:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment:latest
-  ai:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-ai:latest
-  review:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-review:latest
-  mcpserver:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-mcpserver:latest
-  report:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-report:latest
