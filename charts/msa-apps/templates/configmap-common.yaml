@@ -4,6 +4,8 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.commonConfig.name }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 data:
 {{- toYaml .Values.commonConfig.data | nindent 2 }}
 {{- end }}

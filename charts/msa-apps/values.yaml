@@ -16,7 +16,7 @@ global:
 ingress:
   enabled: true
   className: alb
-  host: api.example.com
+  # host: api.example.com
   annotations:
     alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/target-type: ip
@@ -75,7 +75,10 @@ services:
       data:
         DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
         MONGO_NAME: "order_platform"
-        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+        KAFKA_URL: "b-1.ordermsamsk.jmrs67.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+        REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
+        REDIS_PORT: "6380"
+        REDIS_PROTOCOL: "rediss"
     externalSecret:
       secretStoreName: aws-sm-store
       data:
@@ -105,6 +108,8 @@ services:
         - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
         - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
         - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
+    pvcName: auth-logs-pvc
+    mountPath: /var/log/app
 
   order:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
@@ -119,9 +124,9 @@ services:
         REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
         REDIS_PORT: "6380"
         REDIS_PROTOCOL: "rediss"
-        REFUND_QUEUE: "refund-disable-queue"
+        REDIS_REFUND_QUEUE: "refund-disable-queue"
         MONGO_NAME: "order_platform"
-        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+        KAFKA_URL: "b-1.ordermsamsk.jmrs67.c3.kafka.ap-northeast-2.amazonaws.com:9092"
     externalSecret:
       secretStoreName: aws-sm-order
       data:
@@ -146,7 +151,7 @@ services:
         REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
         REDIS_PORT: "6380"
         REDIS_PROTOCOL: "rediss"
-        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+        KAFKA_URL: "b-1.ordermsamsk.jmrs67.c3.kafka.ap-northeast-2.amazonaws.com:9092"
         TOSS_URL: "https://api.tosspayments.com/v1/payments"
     externalSecret:
       secretStoreName: aws-sm-payment
@@ -156,3 +161,4 @@ services:
         - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
         - { secretKey: TOSS_CLIENT_KEY, remoteKey: prod/payment, property: TOSS_CLIENT_KEY }
         - { secretKey: TOSS_SECRET_KEY, remoteKey: prod/payment, property: TOSS_SECRET_KEY }
+

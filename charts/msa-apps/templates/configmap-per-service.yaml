@@ -6,6 +6,8 @@ kind: ConfigMap
 metadata:
   name: {{ $svc.configMap.name }}
   namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 data:
 {{- toYaml $svc.configMap.data | nindent 2 }}
 ---

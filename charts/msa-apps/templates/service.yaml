@@ -5,6 +5,9 @@ kind: Service
 metadata:
   name: {{ $name }}
   namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    alb.ingress.kubernetes.io/healthcheck-path: /{{ $name }}/actuator/health
 spec:
   type: ClusterIP
   selector: { app: {{ $name }} }
@@ -18,6 +21,9 @@ kind: Service
 metadata:
   name: {{ $name }}-canary
   namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    alb.ingress.kubernetes.io/healthcheck-path: /{{ $name }}/actuator/health
 spec:
   selector: { app: {{ $name }} }
   ports:

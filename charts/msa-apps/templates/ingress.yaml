@@ -5,6 +5,7 @@ metadata:
   name: msa-ingress
   namespace: {{ .Values.namespace | default .Release.Namespace }}
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
 {{- range $k, $v := .Values.ingress.annotations }}
     {{ $k }}: {{ $v | quote }}
 {{- end }}
@@ -19,7 +20,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ $name }}-stable
+            name: {{ $name }}
             port:
               number: {{ $svc.port }}
 {{- end }}
