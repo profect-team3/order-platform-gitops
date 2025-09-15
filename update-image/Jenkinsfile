@@ -61,8 +61,7 @@ spec:
     stage('Checkout GitOps') {
       steps {
         container('git') {
-          // private repo라도 동작하도록 clone에도 헤더 주입
-          withCredentials([usernamePassword(credentialsId: 'github-jenkins', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
+          withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
             sh '''
               set -euo pipefail
               rm -rf gitops
