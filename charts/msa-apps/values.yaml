@@ -108,8 +108,6 @@ services:
         - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
         - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
         - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
-    pvcName: auth-logs-pvc
-    mountPath: /var/log/app
 
   order:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
