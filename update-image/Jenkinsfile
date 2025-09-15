@@ -53,7 +53,6 @@ spec:
     disableConcurrentBuilds()
   }
 
-  stages {
     stage('Checkout GitOps') {
       steps {
         container('git') {
@@ -61,6 +60,8 @@ spec:
             set -euo pipefail
             rm -rf gitops
             git clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
+            chown -R 1000:1000 gitops
+            chmod -R u+rwX,g+rwX gitops
           '''
         }
       }
