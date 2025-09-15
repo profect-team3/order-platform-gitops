@@ -45,7 +45,7 @@ spec:
   strategy:
     canary:
       canaryService: {{ $name }}-canary
-      stableService: {{ $name }}
+      stableService: {{ $name }}-stable
       trafficRouting:
         alb:
           ingress: msa-ingress

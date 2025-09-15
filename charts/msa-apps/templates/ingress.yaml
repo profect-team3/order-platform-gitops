@@ -20,7 +20,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ $name }}
+            name: {{ $name }}-stable
             port:
               number: {{ $svc.port }}
 {{- end }}
