@@ -57,24 +57,28 @@ spec:
     disableConcurrentBuilds()
   }
 
-  stages {
-    stage('Checkout GitOps') {
-      steps {
-        container('git') {
-          withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
-            sh '''
-              set -euo pipefail
-              rm -rf gitops
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
-              git -c http.extraHeader="Authorization: Basic ${HDR}" \
-                  clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
-              cd gitops
-              git config user.name  "${BOT_NAME}"
-              git config user.email "${BOT_EMAIL}"
-              git config --global --add safe.directory "$(pwd)"
-              chown -R 1000:1000 .
-              chmod -R u+rwX,g+rwX .
-            '''
+     stage('Checkout GitOps') {
+       steps {
+         container('git') {
+           withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
+             sh '''
+               set -euo pipefail
+               export HOME=/home/jenkins/agent
+
+               rm -rf gitops
+               HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
+               git -c http.extraHeader="Authorization: Basic ${HDR}" \
+                   clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
+
+               cd gitops
+               git config user.name  "${BOT_NAME}"
+               git config user.email "${BOT_EMAIL}"
+
+               git config --global --add safe.directory "$(pwd)"
+
+               chown -R 1000:1000 .
+               chmod -R u+rwX,g+rwX .
+             '''
           }
         }
       }
