@@ -20,6 +20,9 @@ spec:
       image: alpine/git:2.45.2
       command: ['sh','-c','sleep infinity']
       tty: true
+      env:
+        - name: HOME
+          value: /home/jenkins/agent
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
@@ -27,10 +30,16 @@ spec:
       image: mikefarah/yq:4
       command: ['sh','-c','sleep infinity']
       tty: true
+      env:
+        - name: HOME
+          value: /home/jenkins/agent
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
     - name: jnlp
+      env:
+        - name: HOME
+          value: /home/jenkins/agent
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
@@ -55,30 +64,33 @@ spec:
   options {
     timeout(time: 10, unit: 'MINUTES')
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
-     stage('Checkout GitOps') {
-       steps {
-         container('git') {
-           withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
-             sh '''
-               set -euo pipefail
-               export HOME=/home/jenkins/agent
+  stages {
+    stage('Checkout GitOps') {
+      steps {
+        container('git') {
+          withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
+            sh '''
+              set -euo pipefail
+              export HOME=/home/jenkins/agent
 
-               rm -rf gitops
-               HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
-               git -c http.extraHeader="Authorization: Basic ${HDR}" \
-                   clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
+              rm -rf gitops
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
+              git -c http.extraHeader="Authorization: Basic ${HDR}" \
+                  clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
 
-               cd gitops
-               git config user.name  "${BOT_NAME}"
-               git config user.email "${BOT_EMAIL}"
+              cd gitops
+              git config user.name  "${BOT_NAME}"
+              git config user.email "${BOT_EMAIL}"
 
-               git config --global --add safe.directory "$(pwd)"
+              # 필요시 유지, 없어도 무방
+              git config --global --add safe.directory "$(pwd)"
 
-               chown -R 1000:1000 .
-               chmod -R u+rwX,g+rwX .
-             '''
+              chown -R 1000:1000 .
+              chmod -R u+rwX,g+rwX .
+            '''
           }
         }
       }
@@ -89,7 +101,9 @@ spec:
         container('yq') {
           sh '''
             set -euo pipefail
+            export HOME=/home/jenkins/agent
             cd gitops
+
             yq -i '.services |= (. // {})' "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\" |= (. // {})" "${GITOPS_PATH}"
             IMAGE_REF="${IMAGE_DIGEST}"
@@ -103,9 +117,10 @@ spec:
     stage('Commit & Push (no PR by default)') {
       steps {
         container('git') {
-          withCredentials([usernamePassword(credentialsId: 'github-jenkins', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
+          withCredentials([usernamePassword(credentialsId: 'GitHub-signin', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PAT')]) {
             sh '''
               set -euo pipefail
+              export HOME=/home/jenkins/agent
               cd gitops
 
               git add "${GITOPS_PATH}"
@@ -117,15 +132,13 @@ spec:
               MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
               git commit -m "$MSG"
 
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
 
               if [ "${USE_PR}" = "true" ]; then
                 BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
                 git checkout -b "$BR"
-                # 자격 증명을 헤더로 주입하여 push
                 git -c http.extraHeader="Authorization: Basic ${HDR}" push -u origin "$BR"
 
-                # gh 사용 시 PAT 전달
                 if command -v gh >/dev/null 2>&1; then
                   GH_TOKEN="${GIT_PAT}" \
                   gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
@@ -135,7 +148,6 @@ spec:
                   echo "[WARN] gh CLI not found. 브랜치만 푸시했습니다: $BR"
                 fi
               else
-                # main에 바로 push
                 git -c http.extraHeader="Authorization: Basic ${HDR}" push origin "${GITOPS_BRANCH}"
               fi
             '''
