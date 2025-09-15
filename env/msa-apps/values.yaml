@@ -1,5 +1,4 @@
 namespace: msa-test
-
 ingress:
   enabled: true
   className: alb
@@ -12,10 +11,9 @@ ingress:
     alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
     alb.ingress.kubernetes.io/subnets: subnet-0520c9b431facfcbe,subnet-08b1c187f7889d2d4
     alb.ingress.kubernetes.io/backend-protocol: HTTP
-
 services:
   user:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user:latest
+    image: ""
   store:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-store:latest
   auth:
