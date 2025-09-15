@@ -1,0 +1,14 @@
+{{- $ns := .Values.namespace | default .Release.Namespace -}}
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.configMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $svc.configMap.name }}
+  namespace: {{ $ns }}
+data:
+{{- toYaml $svc.configMap.data | nindent 2 }}
+---
+{{- end }}
+{{- end }}
+

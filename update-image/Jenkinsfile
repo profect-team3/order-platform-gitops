@@ -1,0 +1,98 @@
+pipeline {
+  agent {
+    kubernetes {
+      inheritFrom 'docker-builder'
+      defaultContainer 'git'
+    }
+  }
+
+  parameters {
+    string(name: 'SERVICE_KEY',   defaultValue: 'user', description: 'services.<key>')
+    string(name: 'IMAGE_DIGEST',  defaultValue: '',     description: '<repo>@sha256:...')
+    string(name: 'GITOPS_PATH',   defaultValue: 'env/msa-apps/values.yaml')
+    string(name: 'GITOPS_BRANCH', defaultValue: 'main')
+    booleanParam(name: 'USE_PR',  defaultValue: true)
+  }
+
+  environment {
+    // 공개 레포면 그대로 사용. 비공개면 아래 URL을 https + PAT로 바꾸고 withCredentials 사용 권장
+    GITOPS_REPO_URL = 'https://github.com/your-org/order-platform-gitops.git'
+    BOT_NAME  = 'jenkins-bot'
+    BOT_EMAIL = 'jenkins@your-org'
+  }
+
+  options { timeout(time: 10, unit: 'MINUTES'); disableConcurrentBuilds() }
+
+  stages {
+    stage('Checkout GitOps') {
+      steps {
+        container('git') {
+          sh '''
+            set -euo pipefail
+            rm -rf gitops
+            git clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
+          '''
+          // 비공개일 경우 예시:
+          // withCredentials([string(credentialsId: 'gitops-token', variable: 'GIT_TOKEN')]) {
+          //   sh 'git clone --branch "${GITOPS_BRANCH}" https://${GIT_TOKEN}@github.com/your-org/order-platform-gitops.git gitops'
+          // }
+        }
+      }
+    }
+
+    stage('Update values.yaml') {
+      steps {
+        container('yq') {
+          sh '''
+            set -euo pipefail
+            cd gitops
+            yq -i '.services |= (. // {})' "${GITOPS_PATH}"
+            yq -i ".services.\\"${SERVICE_KEY}\\" |= (. // {})" "${GITOPS_PATH}"
+            IMAGE_REF="${IMAGE_DIGEST}"
+            yq -i ".services.\\"${SERVICE_KEY}\\".image = strenv(IMAGE_REF)" "${GITOPS_PATH}"
+            echo "[INFO] Updated ${GITOPS_PATH}: services.${SERVICE_KEY}.image -> ${IMAGE_REF}"
+          '''
+        }
+      }
+    }
+
+    stage('Commit & Push / PR') {
+      steps {
+        container('git') {
+          sh '''
+            set -euo pipefail
+            cd gitops
+            git config user.name  "${BOT_NAME}"
+            git config user.email "${BOT_EMAIL}"
+
+            if [ "${USE_PR}" = "true" ]; then
+              BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
+              git checkout -b "$BR"
+            fi
+
+            git add "${GITOPS_PATH}"
+            if git diff --cached --quiet; then
+              echo "[INFO] No changes to commit."; exit 0
+            fi
+
+            MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
+            git commit -m "$MSG"
+
+            if [ "${USE_PR}" = "true" ]; then
+              git push -u origin "$BR"
+              if command -v gh >/dev/null 2>&1; then
+                gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
+                  --title "chore(${SERVICE_KEY}): image update" \
+                  --body "$MSG"
+              else
+                echo "[WARN] gh CLI not found. 브랜치만 푸시됨: $BR"
+              fi
+            else
+              git push origin "${GITOPS_BRANCH}"
+            fi
+          '''
+        }
+      }
+    }
+  }
+}

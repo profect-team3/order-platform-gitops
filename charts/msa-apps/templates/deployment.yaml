@@ -1,0 +1,46 @@
+{{- $ns := .Values.namespace | default .Release.Namespace -}}
+{{- range $name, $svc := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ $name }} }
+  template:
+    metadata:
+      labels: { app: {{ $name }} }
+    spec:
+      serviceAccountName: {{ $svc.sa.name }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $svc.image }}
+          imagePullPolicy: {{ $svc.imagePullPolicy | default $.Values.global.imagePullPolicy }}
+          ports: [{ containerPort: {{ $svc.port }} }]
+          envFrom:
+            - configMapRef: { name: {{ $.Values.global.commonConfigName }} }
+            {{- if $svc.configMap }}
+            - configMapRef: { name: {{ $svc.configMap.name }} }
+            {{- end }}
+            {{- if $svc.externalSecret }}
+            - secretRef:    { name: {{ $name }}-secrets }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: {{ $.Values.global.probes.path }}, port: {{ $svc.port }} }
+            initialDelaySeconds: {{ $.Values.global.probes.readinessInitial }}
+            periodSeconds: {{ $.Values.global.probes.probePeriod }}
+          livenessProbe:
+            httpGet: { path: {{ $.Values.global.probes.path }}, port: {{ $svc.port }} }
+            initialDelaySeconds: {{ $.Values.global.probes.livenessInitial }}
+            periodSeconds: {{ $.Values.global.probes.probePeriod }}
+          startupProbe:
+            httpGet: { path: {{ $.Values.global.probes.path }}, port: {{ $svc.port }} }
+            failureThreshold: {{ $.Values.global.probes.startupFailureThreshold }}
+            periodSeconds: 30
+          resources:
+            {{- toYaml ($svc.resources | default $.Values.global.resources) | nindent 12 }}
+---
+{{- end }}
+

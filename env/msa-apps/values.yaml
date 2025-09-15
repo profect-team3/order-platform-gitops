@@ -1,0 +1,34 @@
+namespace: msa-test
+
+ingress:
+  enabled: true
+  className: alb
+  host: api.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    alb.ingress.kubernetes.io/subnets: subnet-0520c9b431facfcbe,subnet-08b1c187f7889d2d4
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+
+services:
+  user:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user:latest
+  store:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-store:latest
+  auth:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-auth:latest
+  order:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
+  payment:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment:latest
+  ai:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-ai:latest
+  review:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-review:latest
+  mcpserver:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-mcpserver:latest
+  report:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-report:latest

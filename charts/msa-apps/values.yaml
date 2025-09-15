@@ -1,0 +1,158 @@
+namespace: msa-test
+
+global:
+  imagePullPolicy: IfNotPresent
+  commonConfigName: common-config
+  probes:
+    path: /actuator/health
+    readinessInitial: 10
+    livenessInitial: 20
+    startupFailureThreshold: 30
+    probePeriod: 10
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "500m", memory: "1024Mi" }
+
+ingress:
+  enabled: true
+  className: alb
+  host: api.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    alb.ingress.kubernetes.io/subnets: subnet-0520c9b431facfcbe,subnet-08b1c187f7889d2d4
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+
+# 공통 ConfigMap(그대로 이식)
+commonConfig:
+  create: true
+  name: common-config
+  data:
+    OAUTH_JWKS_URI: "https://cushjx23hnjcflznurrctrcgxy0yglwd.lambda-url.ap-northeast-2.on.aws/oauth/jwks"
+    AUTH_INTERNAL_AUDIENCE: "internal-service"
+    JWT_ISSUER: "https://auth.internal.example.c/"
+    KMS_JWT_KEY_ID: "arn:aws:kms:ap-northeast-2:252098843029:key/c45bc708-8728-4926-b41f-79eedc115405"
+    MCP_SERVER_SVC_URI: "http://mcpserver.msa-test.svc.cluster.local:8099"
+    REPORT_SVC_URI:     "http://report.msa-test.svc.cluster.local:8090"
+    USER_SVC_URI:       "http://user.msa-test.svc.cluster.local:8081"
+    STORE_SVC_URI:      "http://store.msa-test.svc.cluster.local:8082"
+    AUTH_SVC_URI:       "http://auth.msa-test.svc.cluster.local:8083"
+    ORDER_SVC_URI:      "http://order.msa-test.svc.cluster.local:8084"
+    PAYMENT_SVC_URI:    "http://payment.msa-test.svc.cluster.local:8085"
+    REVIEW_SVC_URI:     "http://review.msa-test.svc.cluster.local:8086"
+    AI_SVC_URI:         "http://ai.msa-test.svc.cluster.local:8089"
+
+# 서비스별 설정(Deployment, Service, SA, per-service ConfigMap, ExternalSecret)
+services:
+  # 이름 키가 Service/Deployment/SA 이름으로 사용됨
+  user:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user:latest
+    port: 8081
+    sa:
+      name: user-sa
+      irsaArn: arn:aws:iam::252098843029:role/order-eks-user-irsa
+    configMap:
+      name: user-config
+      data:
+        DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
+    externalSecret:
+      secretStoreName: aws-sm-user
+      data:
+        - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
+        - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
+
+  store:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-store:latest
+    port: 8082
+    sa:
+      name: store-sa
+      irsaArn: arn:aws:iam::252098843029:role/order-eks-store-irsa
+    configMap:
+      name: store-config
+      data:
+        DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
+        MONGO_NAME: "order_platform"
+        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+    externalSecret:
+      secretStoreName: aws-sm-store
+      data:
+        - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
+        - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
+        - { secretKey: DISCORD_URL, remoteKey: prod/discord/DISCORD_URL, property: DISCORD_URL }
+        - { secretKey: MONGO_USERNAME, remoteKey: prod/mongodb, property: username }
+        - { secretKey: MONGO_PASSWORD, remoteKey: prod/mongodb, property: password }
+        - { secretKey: MONGO_HOST,     remoteKey: prod/mongodb, property: host }
+
+  auth:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-auth:latest
+    port: 8083
+    sa:
+      name: auth-sa
+      irsaArn: arn:aws:iam::252098843029:role/order-eks-auth-irsa
+    configMap:
+      name: auth-config
+      data:
+        DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
+        REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
+        REDIS_PORT: "6380"
+        REDIS_PROTOCOL: "rediss"
+    externalSecret:
+      secretStoreName: aws-sm-auth
+      data:
+        - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
+        - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
+        - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
+
+  order:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
+    port: 8084
+    sa:
+      name: order-sa
+      irsaArn: arn:aws:iam::252098843029:role/order-eks-order-irsa
+    configMap:
+      name: order-config
+      data:
+        DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
+        REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
+        REDIS_PORT: "6380"
+        REDIS_PROTOCOL: "rediss"
+        REFUND_QUEUE: "refund-disable-queue"
+        MONGO_NAME: "order_platform"
+        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+    externalSecret:
+      secretStoreName: aws-sm-order
+      data:
+        - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
+        - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
+        - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
+        - { secretKey: DISCORD_URL, remoteKey: prod/discord/DISCORD_URL, property: DISCORD_URL }
+        - { secretKey: MONGO_USERNAME, remoteKey: prod/mongodb, property: username }
+        - { secretKey: MONGO_PASSWORD, remoteKey: prod/mongodb, property: password }
+        - { secretKey: MONGO_HOST,     remoteKey: prod/mongodb, property: host }
+
+  payment:
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment:latest
+    port: 8085
+    sa:
+      name: payment-sa
+      irsaArn: arn:aws:iam::252098843029:role/order-eks-payment-irsa
+    configMap:
+      name: payment-config
+      data:
+        DB_URL: "jdbc:postgresql://order-rds-proxy.proxy-c16sck044czn.ap-northeast-2.rds.amazonaws.com:5432/order_platform?sslmode=require"
+        REDIS_HOST: "master.order-elasticache-redis.98c1fs.apn2.cache.amazonaws.com"
+        REDIS_PORT: "6380"
+        REDIS_PROTOCOL: "rediss"
+        KAFKA_URL: "b-2.ordermsaeksmsk.kkcqtq.c3.kafka.ap-northeast-2.amazonaws.com:9092"
+        TOSS_URL: "https://api.tosspayments.com/v1/payments"
+    externalSecret:
+      secretStoreName: aws-sm-payment
+      data:
+        - { secretKey: DB_USERNAME, remoteKey: prod/rds, property: username }
+        - { secretKey: DB_PASSWORD, remoteKey: prod/rds, property: password }
+        - { secretKey: REDIS_PASSWORD, remoteKey: prod/redis, property: REDIS_PASSWORD }
+        - { secretKey: TOSS_CLIENT_KEY, remoteKey: prod/payment, property: TOSS_CLIENT_KEY }
+        - { secretKey: TOSS_SECRET_KEY, remoteKey: prod/payment, property: TOSS_SECRET_KEY }

@@ -1,0 +1,10 @@
+{{- if .Values.commonConfig.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.commonConfig.name }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+data:
+{{- toYaml .Values.commonConfig.data | nindent 2 }}
+{{- end }}
+
