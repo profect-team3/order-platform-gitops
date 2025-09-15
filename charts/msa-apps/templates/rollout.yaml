@@ -18,7 +18,7 @@ spec:
       serviceAccountName: {{ $svc.sa.name }}
       containers:
         - name: {{ $name }}
-          image: {{ $svc.image }}
+          image: {{ $svc.imageDigest | default $svc.imageLatest | default $svc.image }}
           imagePullPolicy: {{ $svc.imagePullPolicy | default $.Values.global.imagePullPolicy }}
           ports: [{ containerPort: {{ $svc.port }} }]
           envFrom:
