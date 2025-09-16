@@ -29,7 +29,7 @@ spec:
       env: [{ name: HOME, value: /home/jenkins/agent }]
       volumeMounts: [{ name: workspace-volume, mountPath: /home/jenkins/agent }]
     - name: aws
-      image: amazon/aws-cli:2
+      image: amazon/aws-cli:latest
       command: ['sh','-c','sleep infinity']
       tty: true
       env:
