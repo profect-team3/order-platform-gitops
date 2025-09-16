@@ -13,8 +13,8 @@ ingress:
     alb.ingress.kubernetes.io/backend-protocol: HTTP
 services:
   user:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user@sha256:72d024e5b52110e1ff70b5d05599cf8fe446545e7fea6754b7ccaa79297641e7
-    imageDigest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user@sha256:72d024e5b52110e1ff70b5d05599cf8fe446545e7fea6754b7ccaa79297641e7
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user@sha256:82b39c666360f2ed2319fa1eac6c29f394d4484201a73bf97222a1604a21b134
+    imageDigest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user@sha256:82b39c666360f2ed2319fa1eac6c29f394d4484201a73bf97222a1604a21b134
     imageLatest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-user:latest
   store:
     image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-store@sha256:0d42d907d3ea0ea49afbaf03cf920707e0b0c4795e23dd6f105e761d11b362e0
