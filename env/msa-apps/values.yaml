@@ -28,6 +28,6 @@ services:
     imageDigest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order@sha256:e828c513f3800c18f6724f6cbc474f457b3fe6ae3219fc4dcdacd8d30c79aa72
     imageLatest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-order:latest
   payment:
-    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment@sha256:d9272c98c77887e8128e59a0ed7a396dfbfa23ec295e200c6b1ab67d3934fb1e
-    imageDigest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment@sha256:d9272c98c77887e8128e59a0ed7a396dfbfa23ec295e200c6b1ab67d3934fb1e
+    image: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment@sha256:5600183437e2b201309b074f1ec9254da3c42ea6aed50f0c8d7eb5c81fda623f
+    imageDigest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment@sha256:5600183437e2b201309b074f1ec9254da3c42ea6aed50f0c8d7eb5c81fda623f
     imageLatest: 252098843029.dkr.ecr.ap-northeast-2.amazonaws.com/order-payment:latest
