@@ -30,7 +30,7 @@ commonConfig:
   create: true
   name: common-config
   data:
-    OAUTH_JWKS_URI: "https://cushjx23hnjcflznurrctrcgxy0yglwd.lambda-url.ap-northeast-2.on.aws/oauth/jwks"
+    OAUTH_JWKS_URI: "http://auth.msa-test.svc.cluster.local:8083/oauth/jwks"
     AUTH_INTERNAL_AUDIENCE: "internal-service"
     JWT_ISSUER: "https://auth.internal.example.c/"
     KMS_JWT_KEY_ID: "arn:aws:kms:ap-northeast-2:252098843029:key/c45bc708-8728-4926-b41f-79eedc115405"
