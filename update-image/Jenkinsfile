@@ -1,7 +1,7 @@
 pipeline {
   agent {
     kubernetes {
-      cloud 'kubernetes-gitops'
+      cloud 'kubernetes-ci'        // ← 여기: 실제 Jenkins Cloud 이름으로 변경
       defaultContainer 'git'
       yaml """
 apiVersion: v1
