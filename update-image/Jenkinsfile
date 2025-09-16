@@ -77,7 +77,7 @@ spec:
               export HOME=/home/jenkins/agent
 
               rm -rf gitops
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
               git -c http.extraHeader="Authorization: Basic ${HDR}" \
                   clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
 
@@ -102,17 +102,21 @@ spec:
             export HOME=/home/jenkins/agent
             cd gitops
 
+            # 입력 형식 검증: repo@sha256:... 형태만 허용
             case "${IMAGE_DIGEST}" in
               *@sha256:*) ;;
               *) echo "[ERROR] IMAGE_DIGEST must be 'repo@sha256:...'" >&2; exit 1 ;;
             esac
 
+            # services 및 대상 서비스 키 보장
             yq -i '.services |= (. // {})' "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\" |= (. // {})" "${GITOPS_PATH}"
 
+            # DIGEST / LATEST 레퍼런스 계산
             DIGEST_REF="${IMAGE_DIGEST}"
             LATEST_REF="${IMAGE_DIGEST%@*}:latest"
 
+            # 기록: imageDigest / imageLatest / image(호환용=digest)
             yq -i ".services.\\"${SERVICE_KEY}\\".imageDigest = strenv(DIGEST_REF)" "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\".imageLatest = strenv(LATEST_REF)"  "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\".image       = strenv(DIGEST_REF)" "${GITOPS_PATH}"
@@ -144,7 +148,7 @@ spec:
               MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
               git commit -m "$MSG"
 
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
 
               if [ "${USE_PR}" = "true" ]; then
                 BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
@@ -159,7 +163,7 @@ spec:
                 else
                   echo "[WARN] gh CLI not found. 브랜치만 푸시했습니다: $BR"
                 fi
-              else
+              } else {
                 git -c http.extraHeader="Authorization: Basic ${HDR}" push origin "${GITOPS_BRANCH}"
               fi
             '''
@@ -168,3 +172,4 @@ spec:
       }
     }
   }
+}
