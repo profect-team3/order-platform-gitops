@@ -1,7 +1,6 @@
 pipeline {
   agent {
     kubernetes {
-      cloud 'kubernetes-ci'        // ← 여기: 실제 Jenkins Cloud 이름으로 변경
       defaultContainer 'git'
       yaml """
 apiVersion: v1
@@ -65,7 +64,7 @@ spec:
               set -euo pipefail
               export HOME=/home/jenkins/agent
               rm -rf gitops
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
               git -c http.extraHeader="Authorization: Basic ${HDR}" \
                   clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
               cd gitops
@@ -79,6 +78,7 @@ spec:
         }
       }
     }
+
 
     stage('Update values.yaml') {
       steps {
@@ -114,6 +114,7 @@ spec:
       }
     }
 
+
     stage('Commit & Push') {
       steps {
         container('git') {
@@ -132,7 +133,7 @@ spec:
               MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
               git commit -m "$MSG"
 
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
               if [ "${USE_PR}" = "true" ]; then
                 BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
                 git checkout -b "$BR"
