@@ -30,19 +30,19 @@ commonConfig:
   create: true
   name: common-config
   data:
-    OAUTH_JWKS_URI: "http://auth.msa-test.svc.cluster.local:8083/oauth/jwks"
+    OAUTH_JWKS_URI: "http://auth-stable.msa-test.svc.cluster.local:8083/oauth/jwks"
     AUTH_INTERNAL_AUDIENCE: "internal-service"
     JWT_ISSUER: "https://auth.internal.example.c/"
     KMS_JWT_KEY_ID: "arn:aws:kms:ap-northeast-2:252098843029:key/c45bc708-8728-4926-b41f-79eedc115405"
-    MCP_SERVER_SVC_URI: "http://mcpserver.msa-test.svc.cluster.local:8099"
-    REPORT_SVC_URI:     "http://report.msa-test.svc.cluster.local:8090"
-    USER_SVC_URI:       "http://user.msa-test.svc.cluster.local:8081"
-    STORE_SVC_URI:      "http://store.msa-test.svc.cluster.local:8082"
-    AUTH_SVC_URI:       "http://auth.msa-test.svc.cluster.local:8083"
-    ORDER_SVC_URI:      "http://order.msa-test.svc.cluster.local:8084"
-    PAYMENT_SVC_URI:    "http://payment.msa-test.svc.cluster.local:8085"
-    REVIEW_SVC_URI:     "http://review.msa-test.svc.cluster.local:8086"
-    AI_SVC_URI:         "http://ai.msa-test.svc.cluster.local:8089"
+    MCP_SERVER_SVC_URI: "http://mcpserver-stable.msa-test.svc.cluster.local:8099"
+    REPORT_SVC_URI:     "http://report-stable.msa-test.svc.cluster.local:8090"
+    USER_SVC_URI:       "http://user-stable.msa-test.svc.cluster.local:8081"
+    STORE_SVC_URI:      "http://store-stable.msa-test.svc.cluster.local:8082"
+    AUTH_SVC_URI:       "http://auth-stable.msa-test.svc.cluster.local:8083"
+    ORDER_SVC_URI:      "http://order-stable.msa-test.svc.cluster.local:8084"
+    PAYMENT_SVC_URI:    "http://payment-stable.msa-test.svc.cluster.local:8085"
+    REVIEW_SVC_URI:     "http://review-stable.msa-test.svc.cluster.local:8086"
+    AI_SVC_URI:         "http://ai-stable.msa-test.svc.cluster.local:8089"
 
 # 서비스별 설정(Deployment, Service, SA, per-service ConfigMap, ExternalSecret)
 services:
