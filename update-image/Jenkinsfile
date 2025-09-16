@@ -20,36 +20,32 @@ spec:
       image: alpine/git:2.45.2
       command: ['sh','-c','sleep infinity']
       tty: true
-      env:
-        - name: HOME
-          value: /home/jenkins/agent
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
+      env: [{ name: HOME, value: /home/jenkins/agent }]
+      volumeMounts: [{ name: workspace-volume, mountPath: /home/jenkins/agent }]
     - name: yq
       image: mikefarah/yq:4
       command: ['sh','-c','sleep infinity']
       tty: true
+      env: [{ name: HOME, value: /home/jenkins/agent }]
+      volumeMounts: [{ name: workspace-volume, mountPath: /home/jenkins/agent }]
+    - name: aws
+      image: amazon/aws-cli:2
+      command: ['sh','-c','sleep infinity']
+      tty: true
       env:
-        - name: HOME
-          value: /home/jenkins/agent
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
+        - { name: HOME, value: /home/jenkins/agent }
+        - { name: AWS_REGION, value: ap-northeast-2 }
+      volumeMounts: [{ name: workspace-volume, mountPath: /home/jenkins/agent }]
     - name: jnlp
-      env:
-        - name: HOME
-          value: /home/jenkins/agent
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent
+      env: [{ name: HOME, value: /home/jenkins/agent }]
+      volumeMounts: [{ name: workspace-volume, mountPath: /home/jenkins/agent }]
 """
     }
   }
 
   parameters {
     string(name: 'SERVICE_KEY',   defaultValue: 'user', description: 'services.<key>')
-    string(name: 'IMAGE_DIGEST',  defaultValue: '',     description: '<repo>@sha256:... (예: .../order-user@sha256:abcd...)')
+    string(name: 'IMAGE_DIGEST',  defaultValue: '',     description: 'repo@sha256:... 혹은 repo:tag')
     string(name: 'GITOPS_PATH',   defaultValue: 'env/msa-apps/values.yaml')
     string(name: 'GITOPS_BRANCH', defaultValue: 'main')
     booleanParam(name: 'USE_PR',  defaultValue: false)
@@ -62,7 +58,7 @@ spec:
   }
 
   options {
-    timeout(time: 10, unit: 'MINUTES')
+    timeout(time: 15, unit: 'MINUTES')
     disableConcurrentBuilds()
     skipDefaultCheckout(true)
   }
@@ -75,21 +71,75 @@ spec:
             sh '''
               set -euo pipefail
               export HOME=/home/jenkins/agent
-
               rm -rf gitops
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
               git -c http.extraHeader="Authorization: Basic ${HDR}" \
                   clone --branch "${GITOPS_BRANCH}" "${GITOPS_REPO_URL}" gitops
-
               cd gitops
               git config user.name  "${BOT_NAME}"
               git config user.email "${BOT_EMAIL}"
               git config --global --add safe.directory "$(pwd)"
-
               chown -R 1000:1000 .
               chmod -R u+rwX,g+rwX .
             '''
           }
+        }
+      }
+    }
+
+    stage('Resolve digest (if tag)') {
+      steps {
+        container('aws') {
+          sh '''
+            set -euo pipefail
+            export HOME=/home/jenkins/agent
+            cd gitops
+
+            INPUT="${IMAGE_DIGEST}"
+
+            if echo "${INPUT}" | grep -q '@sha256:'; then
+              # 이미 다이제스트 형식
+              DIGEST_REF="${INPUT}"
+              BASE="${INPUT%@*}"
+              LATEST_REF="${BASE}:latest"
+            else
+              # repo:tag 형식이라고 가정하고 ECR에서 다이제스트 조회
+              REPO_AND_TAG="${INPUT}"
+              REPO="${REPO_AND_TAG%:*}"     # repo
+              TAG="${REPO_AND_TAG##*:}"     # tag
+
+              # ECR repo-name 추출 (도메인 이후 경로)
+              # 예: 2520....amazonaws.com/order-user -> order-user
+              REPO_NAME="${REPO##*.amazonaws.com/}"
+
+              # region은 컨테이너 env AWS_REGION 사용
+              REGION="${AWS_REGION:-ap-northeast-2}"
+
+              DIGEST=$(aws ecr describe-images \
+                --repository-name "${REPO_NAME}" \
+                --image-ids imageTag="${TAG}" \
+                --region "${REGION}" \
+                --query 'imageDetails[0].imageDigest' --output text)
+
+              if [ -z "${DIGEST}" ] || [ "${DIGEST}" = "None" ]; then
+                echo "[ERROR] Failed to resolve digest from ECR for ${REPO}:${TAG}" >&2
+                exit 1
+              fi
+
+              DIGEST_REF="${REPO}@${DIGEST}"
+              LATEST_REF="${REPO}:latest"
+            fi
+
+            # 워크스페이스 파일로 넘겨서 다음 스테이지가 읽도록
+            cat > ../resolved.env <<EOF
+DIGEST_REF=${DIGEST_REF}
+LATEST_REF=${LATEST_REF}
+EOF
+
+            echo "[INFO] Resolved:"
+            echo "  DIGEST_REF=${DIGEST_REF}"
+            echo "  LATEST_REF=${LATEST_REF}"
+          '''
         }
       }
     }
@@ -102,29 +152,19 @@ spec:
             export HOME=/home/jenkins/agent
             cd gitops
 
-            # 입력 형식 검증: repo@sha256:... 형태만 허용
-            case "${IMAGE_DIGEST}" in
-              *@sha256:*) ;;
-              *) echo "[ERROR] IMAGE_DIGEST must be 'repo@sha256:...'" >&2; exit 1 ;;
-            esac
+            # 이전 스테이지 결과 불러오기
+            . ../resolved.env
 
             # services 및 대상 서비스 키 보장
             yq -i '.services |= (. // {})' "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\" |= (. // {})" "${GITOPS_PATH}"
 
-            # DIGEST / LATEST 레퍼런스 계산
-            DIGEST_REF="${IMAGE_DIGEST}"
-            LATEST_REF="${IMAGE_DIGEST%@*}:latest"
-
-            # 기록: imageDigest / imageLatest / image(호환용=digest)
+            # 기록
             yq -i ".services.\\"${SERVICE_KEY}\\".imageDigest = strenv(DIGEST_REF)" "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\".imageLatest = strenv(LATEST_REF)"  "${GITOPS_PATH}"
             yq -i ".services.\\"${SERVICE_KEY}\\".image       = strenv(DIGEST_REF)" "${GITOPS_PATH}"
 
-            echo "[INFO] Updated ${GITOPS_PATH}:"
-            echo "  - services.${SERVICE_KEY}.imageDigest = ${DIGEST_REF}"
-            echo "  - services.${SERVICE_KEY}.imageLatest = ${LATEST_REF}"
-            echo "  - services.${SERVICE_KEY}.image       = ${DIGEST_REF} (compat)"
+            echo "[INFO] Updated ${GITOPS_PATH}: services.${SERVICE_KEY} -> digest & latest"
           '''
         }
       }
@@ -145,25 +185,23 @@ spec:
                 exit 0
               fi
 
-              MSG="${SERVICE_KEY}: image -> ${IMAGE_DIGEST}"
+              MSG="${SERVICE_KEY}: image -> $(. ../resolved.env; echo ${DIGEST_REF})"
               git commit -m "$MSG"
 
-              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\n')
-
+              HDR=$(printf "%s:%s" "$GIT_USER" "$GIT_PAT" | base64 | tr -d '\\n')
               if [ "${USE_PR}" = "true" ]; then
                 BR="chore/${SERVICE_KEY}/image-$(date +%Y%m%d%H%M%S)"
                 git checkout -b "$BR"
                 git -c http.extraHeader="Authorization: Basic ${HDR}" push -u origin "$BR"
 
                 if command -v gh >/dev/null 2>&1; then
-                  GH_TOKEN="${GIT_PAT}" \
-                  gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
+                  GH_TOKEN="${GIT_PAT}" gh pr create --base "${GITOPS_BRANCH}" --head "$BR" \
                     --title "chore(${SERVICE_KEY}): image update" \
                     --body "$MSG" || true
                 else
                   echo "[WARN] gh CLI not found. 브랜치만 푸시했습니다: $BR"
                 fi
-              } else {
+              else
                 git -c http.extraHeader="Authorization: Basic ${HDR}" push origin "${GITOPS_BRANCH}"
               fi
             '''
