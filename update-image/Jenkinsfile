@@ -40,7 +40,7 @@ spec:
     string(name: 'IMAGE_DIGEST',  defaultValue: '',     description: 'repo@sha256:...')
     string(name: 'GITOPS_PATH',   defaultValue: 'env/msa-apps/values.yaml')
     string(name: 'GITOPS_BRANCH', defaultValue: 'main')
-    booleanParam(name: 'USE_PR',  defaultValue: false)
+    booleanParam(name: 'USE_PR',  defaultValue: true)
   }
 
   environment {
