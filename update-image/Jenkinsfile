@@ -95,9 +95,13 @@ spec:
             LATEST_REF="${IMAGE_DIGEST%@*}:latest"
             export DIGEST_REF LATEST_REF
 
-            yq -i ".services.\"${SERVICE_KEY}\".imageDigest = strenv(DIGEST_REF)" "${GITOPS_PATH}"
-            yq -i ".services.\"${SERVICE_KEY}\".imageLatest = strenv(LATEST_REF)"  "${GITOPS_PATH}"
-            yq -i ".services.\"${SERVICE_KEY}\".image       = strenv(DIGEST_REF)" "${GITOPS_PATH}"
+            yq -i "
+              .services |= (. // {}) |
+              .services.\"${SERVICE_KEY}\" |= (. // {}) |
+              .services.\"${SERVICE_KEY}\".imageDigest = strenv(DIGEST_REF) |
+              .services.\"${SERVICE_KEY}\".imageLatest = strenv(LATEST_REF)  |
+              .services.\"${SERVICE_KEY}\".image       = strenv(DIGEST_REF)
+            " env/msa-apps/values.yaml
             
             echo "[INFO] Updated ${GITOPS_PATH}: services.${SERVICE_KEY}"
           '''
