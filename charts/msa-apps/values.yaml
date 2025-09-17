@@ -122,7 +122,7 @@ services:
         REDIS_PROTOCOL: "rediss"
         REDIS_REFUND_QUEUE: "refund-disable-queue"
         MONGO_NAME: "order_platform"
-        KAFKA_URL: "b-1.ordermsamsk.o78t9j.c3.kafka.ap-northeast-2.amazonaws.com:9092
+        KAFKA_URL: "b-1.ordermsamsk.o78t9j.c3.kafka.ap-northeast-2.amazonaws.com:9092"
     externalSecret:
       secretStoreName: aws-sm-order
       data:
