@@ -20,7 +20,6 @@ spec:
         backend:
           service:
             name: {{ $name }}-stable
-            healthcheckPath: /actuator/health
             port:
               number: {{ $svc.port }}
 {{- end }}
